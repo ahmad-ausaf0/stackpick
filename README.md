@@ -4,6 +4,8 @@ A tech stack recommender. Describe your project idea, fill in a short form, and 
 ranked stack with reasons, alternatives, cost and difficulty estimates, an architecture
 diagram and a learning roadmap.
 
+**Live demo:** https://ahmad-ausaf0.github.io/stackpick/
+
 Built with Angular 19 + Tailwind CSS. Fully client-side: all scoring happens in the
 browser from a local data file, no backend or API keys needed.
 
