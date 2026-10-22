@@ -47,7 +47,7 @@
                  [class]="step >= s ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'">
               @if (step > s) { ✓ } @else { {{ s }} }
             </div>
-            <span class="hidden text-sm sm:block" [class.text-slate-4_00]="step < s">{{ ['Idea', 'Requirements', 'Result'][i] }}</span>
+            <span class="hidden text-sm sm:block" [class.text-slate-400]="step < s">{{ ['Idea', 'Requirements', 'Result'][i] }}</span>
             @if (s < 3) { <div class="h-0.5 flex-1 rounded" [class]="step > s ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'"></div> }
           </div>
         }
