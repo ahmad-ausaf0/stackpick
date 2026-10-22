@@ -1,0 +1,241 @@
+<div class="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-900 dark:text-slate-100">
+  <header class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 pt-8">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">StackPick<span class="text-indigo-500">.</span></h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400">Describe your project idea, get a tech stack that fits.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="btn btn-ghost" (click)="view = view === 'builder' ? 'saved' : 'builder'; showCompare = false">
+        @if (view === 'builder') { Saved ({{ saved.length }}) } @else { Back to builder }
+      </button>
+      <button class="btn btn-ghost px-3" (click)="toggleTheme()" [attr.aria-label]="'Toggle theme'">
+        @if (dark) { ☀️ } @else { 🌙 }
+      </button>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-4 pb-24 pt-6">
+    @if (view === 'saved') {
+      <!-- SAVED VIEW -->
+      <h2 class="mb-4 text-lg font-semibold">Saved recommendations</h2>
+      @if (saved.length === 0) {
+        <div class="card text-center text-slate-500 dark:text-slate-400">
+          Nothing saved yet. Build a stack and hit Save to keep it here.
+        </div>
+      }
+      <div class="grid gap-3 sm:grid-cols-2">
+        @for (item of saved; track item.id) {
+          <div class="card">
+            <div class="font-medium">{{ item.idea }}</div>
+            <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {{ item.constraints.type }} · {{ item.constraints.scale }} scale · {{ item.difficulty }} · ${{ item.cost[0] }}–${{ item.cost[1] }}/mo
+            </div>
+            <div class="text-xs text-slate-400">{{ item.at | date:'mediumDate' }}</div>
+            <div class="mt-3 flex gap-2">
+              <button class="btn btn-primary py-1.5 text-xs" (click)="openSaved(item)">Open</button>
+              <button class="btn btn-ghost py-1.5 text-xs" (click)="deleteSaved(item)">Delete</button>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <!-- PROGRESS -->
+      <div class="mb-6 flex items-center gap-2">
+        @for (s of [1, 2, 3]; track s; let i = $index) {
+          <div class="flex flex-1 items-center gap-2">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                 [class]="step >= s ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'">
+              @if (step > s) { ✓ } @else { {{ s }} }
+            </div>
+            <span class="hidden text-sm sm:block" [class.text-slate-4_00]="step < s">{{ ['Idea', 'Requirements', 'Result'][i] }}</span>
+            @if (s < 3) { <div class="h-0.5 flex-1 rounded" [class]="step > s ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'"></div> }
+          </div>
+        }
+      </div>
+
+      @if (error) {
+        <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+          {{ error }}
+        </div>
+      }
+
+      <!-- STEP 1: IDEA -->
+      @if (step === 1) {
+        <div class="card">
+          <label for="idea" class="label">What are you building?</label>
+          <textarea id="idea" rows="3" [(ngModel)]="idea"
+            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-900 dark:focus:ring-indigo-900"
+            placeholder="e.g. A food delivery app for my city, with live order tracking"></textarea>
+          <div class="mt-3 flex flex-wrap gap-2">
+            @for (chip of ideaChips; track chip) {
+              <button class="chip" (click)="idea = chip">{{ chip }}</button>
+            }
+          </div>
+          <div class="mt-5 text-right">
+            <button class="btn btn-primary" (click)="nextFromIdea()">Next: requirements →</button>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 2: REQUIREMENTS -->
+      @if (step === 2) {
+        <div class="card space-y-5">
+          <div>
+            <span class="label">Project type</span>
+            <div class="flex flex-wrap gap-2">
+              @for (t of types; track t.id) {
+                <button class="chip" [class.chip-active]="c.type === t.id" (click)="c.type = t.id">{{ t.label }}</button>
+              }
+            </div>
+          </div>
+
+          <div>
+            <span class="label">Expected users</span>
+            <div class="flex flex-wrap gap-2">
+              @for (s of scales; track s) {
+                <button class="chip" [class.chip-active]="c.scale === s" (click)="c.scale = s">{{ scaleLabels[s] }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label class="label" for="team">Team size</label>
+              <input id="team" type="number" min="1" max="20" [(ngModel)]="c.teamSize"
+                class="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-600 dark:bg-slate-900" />
+            </div>
+            <div>
+              <span class="label">Experience level</span>
+              <div class="flex flex-wrap gap-2">
+                @for (e of experiences; track e) {
+                  <button class="chip" [class.chip-active]="c.experience === e" (click)="c.experience = e">{{ expLabels[e] }}</button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+              <span class="label">Budget</span>
+              <div class="flex flex-wrap gap-2">
+                @for (b of budgets; track b) {
+                  <button class="chip" [class.chip-active]="c.budget === b" (click)="c.budget = b">{{ budgetLabels[b] }}</button>
+                }
+              </div>
+            </div>
+            <div>
+              <span class="label">Timeline</span>
+              <div class="flex flex-wrap gap-2">
+                @for (t of timelines; track t) {
+                  <button class="chip" [class.chip-active]="c.timeline === t" (click)="c.timeline = t">{{ timelineLabels[t] }}</button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <span class="label">Must-have features</span>
+            <div class="flex flex-wrap gap-2">
+              @for (f of features; track f.id) {
+                <button class="chip" [class.chip-active]="c.features.includes(f.id)" (click)="toggleFeature(f.id)">{{ f.label }}</button>
+              }
+            </div>
+          </div>
+
+          <div>
+            <label class="label" for="prefs">Preferred languages or frameworks (optional)</label>
+            <input id="prefs" type="text" [(ngModel)]="c.prefs"
+              class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-600 dark:bg-slate-900"
+              placeholder="e.g. Angular, Python" />
+          </div>
+
+          <div class="flex justify-between pt-1">
+            <button class="btn btn-ghost" (click)="step = 1">← Back</button>
+            <button class="btn btn-primary" (click)="submit()" [disabled]="loading">Get my stack</button>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 3: RESULTS -->
+      @if (step === 3 && rec) {
+        @if (loading) {
+          <div class="space-y-4">
+            @for (i of [1, 2, 3, 4]; track i) {
+              <div class="card animate-pulse">
+                <div class="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700"></div>
+                <div class="mt-3 h-4 w-40 rounded bg-slate-200 dark:bg-slate-700"></div>
+                <div class="mt-2 h-3 w-full rounded bg-slate-100 dark:bg-slate-800"></div>
+              </div>
+            }
+          </div>
+        } @else {
+          <app-results [rec]="rec" [alreadySaved]="alreadySaved" [compareOpen]="showCompare"
+            (tweak)="tweak()" (save)="saveRec()" (exportMd)="exportMarkdown()" (compareToggle)="showCompare = !showCompare" />
+
+          @if (savedNotice) {
+            <p class="mt-3 text-sm text-emerald-600 dark:text-emerald-400">Saved. Find it any time under Saved.</p>
+          }
+
+          @if (showCompare) {
+            <app-compare [constraints]="rec.constraints" />
+          }
+
+          <div class="mt-8 text-center">
+            <button class="btn btn-ghost" (click)="startOver()">Start a new idea</button>
+          </div>
+
+          <!-- print / PDF view -->
+          @if (rec) {
+            <div id="print-area" class="hidden max-w-none space-y-4 text-sm">
+              <h1 class="text-xl font-bold">StackPick recommendation</h1>
+              <p><strong>Idea:</strong> {{ rec.idea }}</p>
+              <p><strong>Constraints:</strong> {{ rec.constraints.type }} | {{ rec.constraints.scale }} scale |
+                team of {{ rec.constraints.teamSize }} ({{ rec.constraints.experience }}) |
+                {{ rec.constraints.budget }} budget | {{ rec.constraints.timeline }} timeline</p>
+              @if (rec.constraints.features.length) {
+                <p><strong>Must-haves:</strong> {{ rec.constraints.features.join(', ') }}</p>
+              }
+              @if (rec.constraints.prefs) {
+                <p><strong>Preferred tools:</strong> {{ rec.constraints.prefs }}</p>
+              }
+              <p><strong>Difficulty:</strong> {{ rec.difficulty }}.
+                <strong>Estimated cost:</strong> ${{ rec.cost[0] }}–${{ rec.cost[1] }}/month. {{ rec.costNote }}</p>
+              <h2 class="text-base font-semibold">The stack</h2>
+              <ul class="list-disc pl-6">
+                @for (cat of rec.categories; track cat.cat) {
+                  <li><strong>{{ cat.label }}: {{ cat.pick.name }}</strong> — {{ cat.reason }}
+                    @if (cat.alternatives.length) { <em>(alt: {{ altNames(cat.alternatives) }})</em> }</li>
+                }
+                @for (e of rec.extras; track e.cat) {
+                  <li><strong>{{ e.label }}: {{ e.pick.name }}</strong>
+                    @if (e.pick.note) { ({{ e.pick.note }}) }</li>
+                }
+              </ul>
+              <h2 class="text-base font-semibold">Why this stack</h2>
+              <ul class="list-disc pl-6">
+                @for (w of rec.why; track w) { <li>{{ w }}</li> }
+              </ul>
+              <h2 class="text-base font-semibold">Pros</h2>
+              <ul class="list-disc pl-6">
+                @for (p of rec.pros; track p) { <li>{{ p }}</li> }
+              </ul>
+              <h2 class="text-base font-semibold">Cons</h2>
+              <ul class="list-disc pl-6">
+                @for (p of rec.cons; track p) { <li>{{ p }}</li> }
+              </ul>
+              <h2 class="text-base font-semibold">Roadmap</h2>
+              <ol class="list-decimal pl-6">
+                @for (r of rec.roadmap; track r.title) { <li><strong>{{ r.title }}</strong> — {{ r.detail }}</li> }
+              </ol>
+            </div>
+          }
+
+        }
+      }
+    }
+  </main>
+
+  <footer class="pb-8 text-center text-xs text-slate-400">
+    Rule-based recommendations, scored locally in your browser. No account, no backend.
+  </footer>
+</div>
