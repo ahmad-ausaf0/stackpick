@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StackService, Constraints, StackRec, SCALE_LABELS, EXP_LABELS, BUDGET_LABELS, TIMELINE_LABELS } from './services/stack.service';
+import { AiService, AiSettings, DEFAULT_AI_SETTINGS } from './services/ai.service';
 import { TYPE_LIST, FEATURE_LIST, FeatureId, ProjectType } from './data/tech';
 import { ResultsComponent } from './components/results.component';
 import { CompareComponent } from './components/compare.component';
@@ -13,7 +14,10 @@ interface SavedItem {
   at: string;
   difficulty: string;
   cost: [number, number];
+  source: 'rules' | 'ai';
 }
+
+type RecSource = 'rules' | 'ai';
 
 const IDEA_CHIPS = [
   'A food delivery app for my city',
@@ -43,6 +47,13 @@ export class AppComponent implements OnInit {
   showCompare = false;
   savedNotice = false;
 
+  // AI mode
+  aiMode = false;
+  lastSource: RecSource = 'rules';
+  showAiSettings = false;
+  keyVisible = false;
+  aiSettings: AiSettings = { ...DEFAULT_AI_SETTINGS };
+
   ideaChips = IDEA_CHIPS;
   types = TYPE_LIST;
   features = FEATURE_LIST;
@@ -60,14 +71,21 @@ export class AppComponent implements OnInit {
     budget: 'free', timeline: 'weeks', features: [], prefs: '',
   };
 
-  rec: (StackRec & { idea: string; constraints: Constraints }) | null = null;
+  rec: (StackRec & { idea: string; constraints: Constraints; source: RecSource }) | null = null;
   saved: SavedItem[] = [];
 
-  constructor(private stack: StackService) {}
+  constructor(private stack: StackService, private ai: AiService) {}
 
   ngOnInit() {
     this.dark = document.documentElement.classList.contains('dark');
     this.saved = this.load();
+    this.aiMode = localStorage.getItem('stackpick.aiMode') === '1';
+    try {
+      const stored = JSON.parse(localStorage.getItem('stackpick.ai') || 'null');
+      if (stored && typeof stored === 'object') {
+        this.aiSettings = { ...DEFAULT_AI_SETTINGS, ...stored };
+      }
+    } catch {}
   }
 
   altNames(alts: { name: string }[]): string {
@@ -92,6 +110,19 @@ export class AppComponent implements OnInit {
       : [...this.c.features, f];
   }
 
+  setAiMode(on: boolean) {
+    this.aiMode = on;
+    try { localStorage.setItem('stackpick.aiMode', on ? '1' : '0'); } catch {}
+  }
+
+  saveAiSettings() {
+    try { localStorage.setItem('stackpick.ai', JSON.stringify(this.aiSettings)); } catch {}
+  }
+
+  get hasApiKey(): boolean {
+    return this.aiSettings.apiKey.trim().length > 0;
+  }
+
   submit() {
     this.run(this.c);
   }
@@ -102,21 +133,55 @@ export class AppComponent implements OnInit {
 
   private run(constraints: Constraints) {
     constraints.teamSize = Math.min(20, Math.max(1, Math.round(Number(constraints.teamSize) || 1)));
+    const source: RecSource = this.aiMode ? 'ai' : 'rules';
+    this.lastSource = source;
     this.loading = true;
     this.error = '';
-    setTimeout(() => {
-      try {
-        const built = this.stack.buildStack(constraints);
-        this.rec = { ...built, idea: this.idea.trim(), constraints: { ...constraints, features: [...constraints.features] } };
-        this.savedNotice = false;
-        this.step = 3;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } catch {
-        this.error = 'Something went wrong building your recommendation. Try again.';
-      } finally {
-        this.loading = false;
-      }
-    }, 700);
+    const idea = this.idea.trim();
+
+    const done = (built: StackRec, usedSource: RecSource, notice?: string) => {
+      this.rec = {
+        ...built, idea,
+        constraints: { ...constraints, features: [...constraints.features] },
+        source: usedSource,
+      };
+      if (notice) this.error = notice;
+      this.savedNotice = false;
+      this.step = 3;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      this.loading = false;
+    };
+
+    if (source === 'rules') {
+      setTimeout(() => {
+        try {
+          done(this.stack.buildStack(constraints), 'rules');
+        } catch {
+          this.loading = false;
+          this.error = 'Something went wrong building your recommendation. Try again.';
+        }
+      }, 700);
+      return;
+    }
+
+    if (!this.hasApiKey) {
+      this.loading = false;
+      this.error = 'Add your API key in AI settings first, or switch back to the rule-based engine.';
+      this.showAiSettings = true;
+      return;
+    }
+
+    this.ai.buildStackAi(idea, constraints, this.aiSettings)
+      .then((built) => done(built, 'ai'))
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : 'the AI request failed';
+        try {
+          done(this.stack.buildStack(constraints), 'rules', `AI pick failed (${msg}). Showing the rule-based stack instead.`);
+        } catch {
+          this.loading = false;
+          this.error = `AI pick failed (${msg}).`;
+        }
+      });
   }
 
   tweak() { this.step = 2; }
@@ -126,6 +191,7 @@ export class AppComponent implements OnInit {
     this.step = 1;
     this.rec = null;
     this.showCompare = false;
+    this.showAiSettings = false;
   }
 
   get alreadySaved(): boolean {
@@ -137,6 +203,7 @@ export class AppComponent implements OnInit {
     const item: SavedItem = {
       id: Date.now(), idea: this.rec.idea, constraints: this.rec.constraints,
       at: new Date().toISOString(), difficulty: this.rec.difficulty, cost: this.rec.cost,
+      source: this.rec.source,
     };
     this.saved = [item, ...this.saved];
     this.persist();
@@ -157,7 +224,8 @@ export class AppComponent implements OnInit {
 
   exportMarkdown() {
     if (!this.rec) return;
-    const md = this.stack.buildMarkdown(this.rec, this.rec.idea, this.rec.constraints);
+    const md = this.stack.buildMarkdown(this.rec, this.rec.idea, this.rec.constraints)
+      .replace('# StackPick recommendation', `# StackPick recommendation (${this.rec.source === 'ai' ? 'AI pick' : 'rule-based'})`);
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

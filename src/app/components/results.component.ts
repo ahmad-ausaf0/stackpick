@@ -15,6 +15,8 @@ import { DiagramComponent } from './diagram.component';
           <div class="mt-1 flex items-center gap-2">
             <span class="rounded-full px-3 py-1 text-sm font-semibold"
                   [style.background]="diffColor" [style.color]="'#fff'">{{ r.difficulty }}</span>
+            <span class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                  [style.background]="source === 'ai' ? '#8b5cf6' : '#64748b'" [style.color]="'#fff'">{{ source === 'ai' ? 'AI pick' : 'Rule-based' }}</span>
           </div>
           <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ r.difficultyNote }}</p>
         </div>
@@ -138,6 +140,7 @@ export class ResultsComponent {
   @Input({ required: true }) rec!: StackRec & { idea: string; constraints: Constraints };
   @Input() alreadySaved = false;
   @Input() compareOpen = false;
+  @Input() source: 'rules' | 'ai' = 'rules';
   @Output() tweak = new EventEmitter<void>();
   @Output() exportMd = new EventEmitter<void>();
   @Output() save = new EventEmitter<void>();

@@ -6,8 +6,9 @@ diagram and a learning roadmap.
 
 **Live demo:** https://ahmad-ausaf0.github.io/stackpick/
 
-Built with Angular 19 + Tailwind CSS. Fully client-side: all scoring happens in the
-browser from a local data file, no backend or API keys needed.
+Built with Angular 19 + Tailwind CSS. The rule-based engine runs fully client-side from
+a local data file, no backend or API keys needed. An optional AI mode sends your idea +
+constraints to an LLM (your own OpenAI-compatible key) and renders its structured answer.
 
 ## Run it
 
@@ -28,6 +29,20 @@ npm run build    # production build in dist/stackpick
   don't end up with a Firebase backend and a Supabase auth layer.
 - `Compare stacks` re-scores the same inputs under three priority profiles:
   Fast & simple, Balanced, Scale-ready.
+
+## AI mode (optional)
+
+Next to the rule-based engine there is an **AI mode**. Flip it on in step 2, fill in an
+OpenAI-compatible endpoint (base URL, model, API key — OpenAI, Groq, OpenRouter or a
+local server all work), and StackPick sends your idea + constraints to the model and
+renders its stack in the same UI.
+
+- The request asks for strict JSON with a fixed schema; the answer is parsed defensively
+  (fences stripped, shape validated field by field) before it reaches the UI.
+- If the model returns an incomplete or malformed stack, or the call fails, the app
+  falls back to the rule-based pick and says so.
+- Your key is stored only in your browser's localStorage and requests go straight from
+  your browser to the provider; nothing touches any StackPick backend (there isn't one).
 
 ## Features
 
